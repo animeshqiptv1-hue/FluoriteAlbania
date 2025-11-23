@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fluorite Portal</title>
+<style>
+:root{--bg:#000;--neon:#9b30ff}
+body{margin:0;background:var(--bg);color:#fff;font-family:Inter,Arial}
+.container{max-width:420px;margin:0 auto;padding:16px}
+.card{background:linear-gradient(180deg,#060006,#0b0012);border:1px solid rgba(155,48,255,0.08);padding:14px;border-radius:12px;margin-bottom:12px}
+.title{color:var(--neon);font-weight:700;font-size:18px;margin-bottom:8px}
+.input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(155,48,255,0.12);background:transparent;color:#fff;margin-top:8px}
+.btn{width:100%;padding:12px;border-radius:10px;border:0;background:linear-gradient(90deg,#9b30ff,#6f2bff);color:#fff;font-weight:700;margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.square{background:linear-gradient(180deg,rgba(155,48,255,0.04),rgba(255,255,255,0.01));padding:12px;border-radius:10px;min-height:88px;display:flex;flex-direction:column;justify-content:space-between}
+.small{font-size:13px;color:#ddd}
+.muted{font-size:12px;color:#999}
+@media(min-width:420px){ .grid{grid-template-columns:repeat(3,1fr)} }
+a{color:var(--neon)}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Apply before login -->
+  <div class="card" id="applyCard">
+    <div class="title">Aplikim për qasje</div>
+    <div class="small">Para se të aksesosh panelin, dërgo një aplikim tek Telegram @brolyxit</div>
+    <input id="applyUser" class="input" placeholder="Username (p.sh. emri yt)">
+    <input id="applyReason" class="input" placeholder="Arsye pse do qasje">
+    <button id="applyBtn" class="btn">Dërgo Aplikimin</button>
+  </div>
+
+  <!-- Login (hidden pasi aplikimi dërgohet) -->
+  <div class="card" id="loginCard" style="display:none">
+    <div class="title">Login</div>
+    <input id="loginUser" class="input" placeholder="username" value="">
+    <input id="loginPass" class="input" placeholder="password" type="password">
+    <button id="loginBtn" class="btn">Hyr</button>
+    <div class="muted">Demo: fluoritebroly / fluorite1</div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="card" id="dashCard" style="display:none">
+    <div class="title">Paneli</div>
+    <div class="small">Balance: <span id="balance">0.00</span> €</div>
+    <div class="small" style="margin-top:8px">Binance ID: <b>875049330</b></div>
+
+    <hr style="border:none;height:8px">
+
+    <div class="small">Top Up - Ngarko screenshot të pagesës (Binance)</div>
+    <input id="topAmount" class="input" placeholder="Shuma (€)">
+    <input id="topTx" class="input" placeholder="Tx ID nga Binance">
+    <input id="topFile" type="file" accept="image/*" style="margin-top:8px">
+    <button id="topBtn" class="btn">Dërgo TopUp</button>
+    <div class="muted" style="margin-top:8px">Fotoja do të dërgohet tek Telegrami i adminit dhe do të vendoset në pritje / auto-approve sipas konfigurimit të serverit.</div>
+
+    <hr style="border:none;height:8px">
+
+    <div style="margin-top:8px" class="title">Gjenero Çelës</div>
+    <div class="grid">
+      <div class="square">
+        <div class="small">1 Day</div>
+        <div class="small" style="font-weight:800">5 €</div>
+        <button class="btn genBtn" data-days="1" data-price="5" style="margin-top:8px">Gjenero</button>
+      </div>
+      <div class="square">
+        <div class="small">1 Week</div>
+        <div class="small" style="font-weight:800">8 €</div>
+        <button class="btn genBtn" data-days="7" data-price="8" style="margin-top:8px">Gjenero</button>
+      </div>
+      <div class="square">
+        <div class="small">1 Month</div>
+        <div class="small" style="font-weight:800">16 €</div>
+        <button class="btn genBtn" data-days="30" data-price="16" style="margin-top:8px">Gjenero</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="small">Çelësi i fundit:</div>
+    <div id="lastKey" style="font-family:monospace;font-size:14px;margin-top:6px">—</div>
+
+    <div style="margin-top:12px" class="muted">Për regjistrim/support: <a href="https://t.me/brolyxit" target="_blank">@brolyxit</a></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin; // ndrysho në URL e serverit kur hoston ndryshe
+
+function qs(id){ return document.getElementById(id); }
+function show(id){ qs(id).style.display='block'; }
+function hide(id){ qs(id).style.display='none'; }
+
+qs('applyBtn').addEventListener('click', async ()=>{
+  const user = qs('applyUser').value.trim();
+  const reason = qs('applyReason').value.trim();
+  if(!user || !reason){ alert('Ploteso fushat.'); return; }
+  const res = await fetch(API_BASE + '/apply', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username: user, reason })
+  });
+  const j = await res.json();
+  if(j.ok){
+    alert('Aplikimi u dergua. Mund te hysh tani ne login.');
+    hide('applyCard'); show('loginCard');
+  } else alert('Gabim: ' + (j.error||''));
+});
+
+qs('loginBtn').addEventListener('click', async ()=>{
+  const username = qs('loginUser').value.trim();
+  const password = qs('loginPass').value;
+  if(!username || !password) return alert('Ploteso fushat.');
+  const res = await fetch(API_BASE + '/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password })
+  });
+  if(res.status===200){
+    const j = await res.json();
+    localStorage.setItem('session_user', username);
+    hide('loginCard'); show('dashCard');
+    loadUser();
+  } else {
+    const j = await res.json();
+    alert('Login failed: ' + (j.error||''));
+  }
+});
+
+async function loadUser(){
+  const u = localStorage.getItem('session_user');
+  if(!u) return;
+  const res = await fetch(API_BASE + '/user/' + encodeURIComponent(u));
+  if(res.status===200){
+    const j = await res.json();
+    const bal = j.user.balance || 0;
+    qs('balance').textContent = Number(bal).toFixed(2);
+  }
+}
+
+qs('topBtn').addEventListener('click', async ()=>{
+  const username = localStorage.getItem('session_user');
+  if(!username) return alert('Hyrni paraprakisht.');
+  const amount = qs('topAmount').value.trim();
+  const txid = qs('topTx').value.trim();
+  const file = qs('topFile').files[0];
+  if(!amount || !txid || !file) return alert('Vendos shumen, TxID dhe ngarko screenshot.');
+  const fd = new FormData();
+  fd.append('username', username);
+  fd.append('amount', amount);
+  fd.append('txid', txid);
+  fd.append('screenshot', file);
+  fd.append('autoApprove', 'false');
+
+  const res = await fetch(API_BASE + '/topup', { method:'POST', body: fd });
+  const j = await res.json();
+  if(j.ok){
+    alert('TopUp u dergua. Fotoja dërgohet tek Telegram i adminit. Nëse miratohet, do ta shikosh balanën e përditësuar.');
+    qs('topAmount').value=''; qs('topTx').value=''; qs('topFile').value='';
+    loadUser();
+  } else alert('Error: ' + (j.error || ''));
+});
+
+document.querySelectorAll('.genBtn').forEach(b=>{
+  b.addEventListener('click', async ()=>{
+    const username = localStorage.getItem('session_user');
+    if(!username) return alert('Hyrni paraprakisht.');
+    const days = b.dataset.days;
+    const price = Number(b.dataset.price);
+    const profile = await fetch(API_BASE + '/user/' + encodeURIComponent(username)).then(r=>r.json());
+    if(profile.user.balance < price) return alert('Balanç i pamjaftueshëm.');
+    const res = await fetch(API_BASE + '/createKey', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, days })
+    });
+    const j = await res.json();
+    if(j.ok){
+      qs('lastKey').textContent = j.key;
+      alert('Çelësi u gjenerua: ' + j.key);
+      loadUser();
+    } else alert('Gabim: ' + (j.error || ''));
+  });
+});
+
+window.addEventListener('load', ()=>{
+  const u = localStorage.getItem('session_user');
+  if(u){
+    hide('applyCard'); hide('loginCard'); show('dashCard'); loadUser();
+  }
+});
+</script>
+</body>
+</html>
